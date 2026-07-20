@@ -16,8 +16,10 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173",
+                   "https://crukdatahub-staging.up.railway.app",
+                   "https://crukdatahub-production.up.railway.app",
                    "https://crukdatahublandingpage-production.up.railway.app",
-                   "https://crukdatahublandingpage-staging.up.railway.app"],  # Your React URL
+                   "https://crukdatahublandingpage-staging.up.railway.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

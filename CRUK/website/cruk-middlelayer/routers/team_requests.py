@@ -57,7 +57,7 @@ async def create_team_request(
         )
 
     logo_base64 = None
-    if team_logo:
+    if team_logo and team_logo.filename:
         if not team_logo.content_type.startswith("image/"):
             raise HTTPException(status_code=400, detail="Team logo must be an image.")
             

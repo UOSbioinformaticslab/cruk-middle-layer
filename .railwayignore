@@ -1,0 +1,9 @@
+# Railway ignore configuration
+.env
+.env*
+middlelayer.db
+*.db
+.idea/
+.git/
+__pycache__/
+*.pyc

@@ -20,3 +20,24 @@ class TeamRequestResponse(TeamRequestBase):
 
     class Config:
         from_attributes = True
+
+class ErrorLogCreate(BaseModel):
+    service_name: str
+    correlation_id: str
+    message: Optional[str] = None
+    stack_trace: Optional[str] = None
+
+class ErrorLogUpdate(BaseModel):
+    status: Optional[str] = None
+    assigned_to: Optional[str] = None
+    resolution_notes: Optional[str] = None
+
+class ErrorLogResponse(ErrorLogCreate):
+    id: int
+    timestamp: datetime
+    status: str
+    assigned_to: Optional[str] = None
+    resolution_notes: Optional[str] = None
+
+    class Config:
+        from_attributes = True

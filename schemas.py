@@ -41,3 +41,28 @@ class ErrorLogResponse(ErrorLogCreate):
 
     class Config:
         from_attributes = True
+
+class EnquiryCreate(BaseModel):
+    contact_number: Optional[str] = None
+    dataset_name: Optional[str] = None
+    enquiry_text: str
+    consent_given: bool
+    applicant_name: Optional[str] = None
+    applicant_email: Optional[str] = None
+    applicant_organisation: Optional[str] = None
+
+class EnquiryResponse(BaseModel):
+    id: int
+    team_id: int
+    user_id: Optional[int] = None
+    dataset_name: Optional[str] = None
+    contact_number: Optional[str] = None
+    enquiry_text: str
+    consent_given: bool
+    created_at: datetime
+    applicant_name: Optional[str] = None
+    applicant_email: Optional[str] = None
+    applicant_organisation: Optional[str] = None
+
+    class Config:
+        from_attributes = True

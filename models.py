@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean
 from datetime import datetime, timezone
 from database import Base
 
@@ -30,3 +30,19 @@ class ErrorLog(Base):
     status = Column(String, default="Open", index=True)
     assigned_to = Column(String, nullable=True)
     resolution_notes = Column(Text, nullable=True)
+
+class DataCustodianEnquiry(Base):
+    __tablename__ = "data_custodian_enquiries"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    team_id = Column(Integer, index=True, nullable=False)
+    user_id = Column(Integer, nullable=True)
+    dataset_name = Column(String, nullable=True)
+    contact_number = Column(String, nullable=True)
+    enquiry_text = Column(Text, nullable=False)
+    consent_given = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    
+    applicant_name = Column(String, nullable=True)
+    applicant_email = Column(String, nullable=True)
+    applicant_organisation = Column(String, nullable=True)

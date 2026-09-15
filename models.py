@@ -46,3 +46,17 @@ class DataCustodianEnquiry(Base):
     applicant_name = Column(String, nullable=True)
     applicant_email = Column(String, nullable=True)
     applicant_organisation = Column(String, nullable=True)
+
+class TourVoiceover(Base):
+    __tablename__ = "tour_voiceovers"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    tour_id = Column(String, index=True, nullable=False)
+    step_index = Column(Integer, nullable=False)
+    audio_filename = Column(String, nullable=False)
+    mime_type = Column(String, default="audio/webm")
+    duration_seconds = Column(Integer, default=0)
+    created_by_user = Column(String, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+

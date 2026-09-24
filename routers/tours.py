@@ -40,10 +40,7 @@ def verify_admin_token(authorization: str = Header(None)):
                 # Allow if user is superuser/admin or has valid admin privileges
                 is_admin = user_data.get("is_superuser") or user_data.get("is_admin") or user_data.get("role") == "admin"
                 if not is_admin:
-                    # In development, also check if logged in as test@test.com or skw24
-                    email = user_data.get("email", "")
-                    if email not in ["test@test.com", "skw24@sussex.ac.uk", "b.hall@ucl.ac.uk"]:
-                        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required to edit tour voiceovers")
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required to edit tour voiceovers")
                 return user_data.get("email", "admin")
     except HTTPException:
         raise

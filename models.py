@@ -60,3 +60,34 @@ class TourVoiceover(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
+class UploadSession(Base):
+    __tablename__ = "upload_sessions"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    session_id = Column(String, index=True, nullable=False)
+    dataset_id = Column(String, index=True, nullable=True)
+    dataset_name = Column(String, nullable=True)
+    recommender_used = Column(Boolean, default=False)
+    recommender_action = Column(String, nullable=True)  # ACCEPT_ALL, DISMISS_ALL, INDIVIDUAL_REVIEW, SKIPPED
+    total_recommended = Column(Integer, default=0)
+    total_accepted = Column(Integer, default=0)
+    total_rejected = Column(Integer, default=0)
+    manual_filters_added = Column(Text, nullable=True)  # JSON-encoded array
+    sections_visited = Column(Text, nullable=True)      # JSON-encoded array
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+
+class FilterRejectionEvent(Base):
+    __tablename__ = "filter_rejection_events"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    upload_session_id = Column(Integer, index=True, nullable=True)
+    dataset_id = Column(String, index=True, nullable=True)
+    dataset_name = Column(String, nullable=True)
+    filter_id = Column(String, index=True, nullable=False)
+    filter_label = Column(String, nullable=True)
+    triggering_phrase = Column(String, index=True, nullable=True)
+    metadata_field = Column(String, nullable=True)
+    snippet_context = Column(Text, nullable=True)  # Bounded to +-100 chars
+    rejection_type = Column(String, default="INDIVIDUAL_DISMISS")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+

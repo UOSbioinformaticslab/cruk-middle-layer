@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from database import engine
 import models
-from routers import team_requests, logs, enquiries, tours
+from routers import team_requests, logs, enquiries, tours, upload_analytics
 
 # Create the database tables automatically
 models.Base.metadata.create_all(bind=engine)
@@ -34,3 +34,4 @@ app.include_router(team_requests.router)
 app.include_router(logs.router)
 app.include_router(enquiries.router)
 app.include_router(tours.router)
+app.include_router(upload_analytics.router)

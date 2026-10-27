@@ -6,7 +6,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./middlelayer.db")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_DB_PATH = os.path.join(BASE_DIR, "middlelayer.db")
+
+raw_db_url = os.getenv("DATABASE_URL")
+if not raw_db_url or raw_db_url == "sqlite:///./middlelayer.db":
+    SQLALCHEMY_DATABASE_URL = f"sqlite:///{DEFAULT_DB_PATH}"
+else:
+    SQLALCHEMY_DATABASE_URL = raw_db_url
+
 if SQLALCHEMY_DATABASE_URL.startswith("postgres://"):
     SQLALCHEMY_DATABASE_URL = SQLALCHEMY_DATABASE_URL.replace("postgres://", "postgresql://", 1)
 

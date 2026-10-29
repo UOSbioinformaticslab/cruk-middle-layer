@@ -464,7 +464,6 @@ def find_filter_rule(filter_id: str) -> Dict[str, Any]:
         "topography_rules",
         "histology_rules",
         "data_type_rules",
-        "parent_category_rules",
         "access_rules"
     ]
     matched_rules = []
@@ -474,24 +473,10 @@ def find_filter_rule(filter_id: str) -> Dict[str, Any]:
             if clean_id in [str(x).strip() for x in fids]:
                 matched_rules.append({"section": sec, "rule": r})
 
-    # Check hierarchy for parent rule if direct rule not found or to supplement
-    hierarchy = data.get("hierarchy", {})
-    parent_id = hierarchy.get(clean_id)
-    parent_rule = None
-    if parent_id:
-        for sec in rule_sections:
-            for r in data.get(sec, []):
-                fids = r.get("filter_ids") or ([r.get("filter_id")] if r.get("filter_id") else [])
-                if str(parent_id).strip() in [str(x).strip() for x in fids]:
-                    parent_rule = {"section": sec, "rule": r, "parent_id": parent_id}
-                    break
-            if parent_rule:
-                break
-
     return {
         "filter_id": clean_id,
         "matched_rules": matched_rules,
-        "parent_rule": parent_rule,
+        "parent_rule": None,
         "source_file": "basic/basic_backend/helpers/filter_rules.json"
     }
 

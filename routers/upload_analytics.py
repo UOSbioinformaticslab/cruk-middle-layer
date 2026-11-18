@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
 from database import get_db
+import auth
 import models
 import schemas
 
@@ -92,7 +93,11 @@ def normalize_dataset_name(name: Optional[str], dataset_id: Optional[str] = None
     return "Untitled Dataset"
 
 @router.post("/session", response_model=schemas.UploadSessionResponse)
-def record_upload_session(payload: schemas.UploadSessionCreate, db: Session = Depends(get_db)):
+def record_upload_session(
+    payload: schemas.UploadSessionCreate,
+    user: dict = Depends(auth.get_current_user_info),
+    db: Session = Depends(get_db),
+):
     """
     Records an upload session including recommender feedback, rejected filters, and manual additions.
     Deduplicates rejections and manual filters so that duplicate submissions for the same dataset
@@ -180,6 +185,7 @@ def get_filter_rejections(
     since: Optional[str] = Query(None, description="Start date YYYY-MM-DD (defaults to 30 days ago)"),
     filter_id: Optional[str] = Query(None, description="Optional specific filter ID to inspect, e.g. 0_0_5"),
     format: Optional[str] = Query("json", description="Response format: 'json' or 'summary_text'"),
+    admin_user: dict = Depends(auth.require_admin),
     db: Session = Depends(get_db)
 ):
     """
@@ -302,6 +308,7 @@ def get_filter_rejections(
 @router.get("/manual-additions", response_model=schemas.ManualFiltersResponse)
 def get_manual_additions(
     since: Optional[str] = Query(None, description="Start date YYYY-MM-DD (defaults to 30 days ago)"),
+    admin_user: dict = Depends(auth.require_admin),
     db: Session = Depends(get_db)
 ):
     """
@@ -394,6 +401,7 @@ def get_manual_additions(
 @router.delete("/reset")
 def reset_filter_modifications_data(
     filter_id: Optional[str] = Query(None, description="Optional filter ID to reset individually"),
+    admin_user: dict = Depends(auth.require_admin),
     db: Session = Depends(get_db)
 ):
     """
@@ -428,9 +436,13 @@ def reset_filter_modifications_data(
     return {"status": "success", "message": "All upload sessions and rejection telemetry cleared."}
 
 @router.delete("/filters/{filter_id}")
-def reset_single_filter(filter_id: str, db: Session = Depends(get_db)):
+def reset_single_filter(
+    filter_id: str,
+    admin_user: dict = Depends(auth.require_admin),
+    db: Session = Depends(get_db),
+):
     """Convenience REST endpoint to reset a single filter's telemetry."""
-    return reset_filter_modifications_data(filter_id=filter_id, db=db)
+    return reset_filter_modifications_data(filter_id=filter_id, admin_user=admin_user, db=db)
 
 def find_filter_rule(filter_id: str) -> Dict[str, Any]:
     """
@@ -482,7 +494,8 @@ def find_filter_rule(filter_id: str) -> Dict[str, Any]:
 
 @router.get("/filter-rule")
 def get_filter_rule_endpoint(
-    filter_id: str = Query(..., description="Filter ID to look up in filter_rules.json")
+    filter_id: str = Query(..., description="Filter ID to look up in filter_rules.json"),
+    admin_user: dict = Depends(auth.require_admin),
 ):
     """
     Looks up and returns the exact rule definition(s) from filter_rules.json matching the given filter ID.
@@ -493,7 +506,8 @@ def get_filter_rule_endpoint(
 def get_dataset_metadata(
     name: Optional[str] = Query(None, description="Dataset title or name"),
     dataset_id: Optional[str] = Query(None, description="Optional dataset integer ID or datasetid string"),
-    filter_id: Optional[str] = Query(None, description="Optional filter ID to look up rule snippet in filter_rules.json")
+    filter_id: Optional[str] = Query(None, description="Optional filter ID to look up rule snippet in filter_rules.json"),
+    admin_user: dict = Depends(auth.require_admin),
 ):
     """
     Returns full metadata, assigned filters, text corpus, and filter rule definition for a specific dataset

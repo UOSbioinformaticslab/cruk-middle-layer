@@ -85,9 +85,12 @@ async def create_team_request(
     return new_request
 
 @router.get("/", response_model=List[schemas.TeamRequestResponse])
-def get_team_requests(db: Session = Depends(get_db)):
+def get_team_requests(
+    admin_user: dict = Depends(__import__("auth").require_admin),
+    db: Session = Depends(get_db),
+):
     """
-    Retrieve all team requests. Visible in Swagger for admins.
+    Retrieve all team requests. Admin only.
     """
     requests = db.query(models.TeamRequest).all()
     return requests

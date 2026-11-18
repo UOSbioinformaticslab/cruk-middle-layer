@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Depends
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
+import auth
 import models
 import schemas
 
@@ -17,15 +19,20 @@ def create_error_log(log_in: schemas.ErrorLogCreate, db: Session = Depends(get_d
     db.refresh(db_log)
     return db_log
 
-from typing import List
-from fastapi import HTTPException
-
 @router.get("/errors", response_model=List[schemas.ErrorLogResponse])
-def get_error_logs(db: Session = Depends(get_db)):
+def get_error_logs(
+    admin_user: dict = Depends(auth.require_admin),
+    db: Session = Depends(get_db),
+):
     return db.query(models.ErrorLog).order_by(models.ErrorLog.timestamp.desc()).all()
 
 @router.put("/errors/{log_id}", response_model=schemas.ErrorLogResponse)
-def update_error_log(log_id: int, log_update: schemas.ErrorLogUpdate, db: Session = Depends(get_db)):
+def update_error_log(
+    log_id: int,
+    log_update: schemas.ErrorLogUpdate,
+    admin_user: dict = Depends(auth.require_admin),
+    db: Session = Depends(get_db),
+):
     db_log = db.query(models.ErrorLog).filter(models.ErrorLog.id == log_id).first()
     if not db_log:
         raise HTTPException(status_code=404, detail="Log not found")
@@ -39,7 +46,11 @@ def update_error_log(log_id: int, log_update: schemas.ErrorLogUpdate, db: Sessio
     return db_log
 
 @router.delete("/errors/{log_id}")
-def delete_error_log(log_id: int, db: Session = Depends(get_db)):
+def delete_error_log(
+    log_id: int,
+    admin_user: dict = Depends(auth.require_admin),
+    db: Session = Depends(get_db),
+):
     db_log = db.query(models.ErrorLog).filter(models.ErrorLog.id == log_id).first()
     if not db_log:
         raise HTTPException(status_code=404, detail="Log not found")

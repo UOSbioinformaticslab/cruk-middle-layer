@@ -1,10 +1,10 @@
 import os
-import shutil
-import urllib.request
-import json
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Header, status
+import re
+from pathlib import Path
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, status
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
+import auth
 import models
 from database import get_db
 
@@ -17,39 +17,19 @@ router = APIRouter(
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads/audio")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# Authentication Verification Helper against VITE_BACKEND_URL / Gatekeeper
-BACKEND_URL = os.getenv("BACKEND_URL", "http://127.0.0.1:8000")
+ALLOWED_AUDIO_EXTENSIONS = {"webm", "mp3", "wav", "ogg", "m4a"}
+MAX_AUDIO_BYTES = 10 * 1024 * 1024  # 10 MB
+TOUR_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 
-def verify_admin_token(authorization: str = Header(None)):
-    if not authorization or not authorization.startswith("Bearer "):
+
+def _validate_tour_id(tour_id: str) -> str:
+    if not TOUR_ID_PATTERN.match(tour_id):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authorization header with Bearer token is required"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid tour_id format",
         )
-    token = authorization.split(" ")[1]
-    
-    # Validate token against primary backend service (VITE_BACKEND_URL)
-    try:
-        req = urllib.request.Request(
-            f"{BACKEND_URL}/users/me",
-            headers={"Authorization": f"Bearer {token}"}
-        )
-        with urllib.request.urlopen(req, timeout=5) as resp:
-            if resp.status == 200:
-                user_data = json.loads(resp.read().decode())
-                # Allow if user is superuser/admin or has valid admin privileges
-                is_admin = user_data.get("is_superuser") or user_data.get("is_admin") or user_data.get("role") == "admin"
-                if not is_admin:
-                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin privileges required to edit tour voiceovers")
-                return user_data.get("email", "admin")
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"Token validation warning against backend: {e}")
-        # Development fallback if token format is valid string
-        if len(token) > 10:
-            return "admin_dev"
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    return tour_id
+
 
 @router.get("/{tour_id}/voiceovers")
 def get_tour_voiceovers(tour_id: str, db: Session = Depends(get_db)):
@@ -57,6 +37,7 @@ def get_tour_voiceovers(tour_id: str, db: Session = Depends(get_db)):
     Returns a map of step indices to relative audio URL paths for the given tour_id.
     Relative paths are used so they resolve correctly both locally and on Railway.
     """
+    _validate_tour_id(tour_id)
     voiceovers = db.query(models.TourVoiceover).filter(models.TourVoiceover.tour_id == tour_id).all()
     result = {}
     for v in voiceovers:
@@ -73,23 +54,41 @@ async def upload_step_voiceover(
     tour_id: str,
     step_index: int,
     file: UploadFile = File(...),
-    admin_email: str = Depends(verify_admin_token),
+    admin_user: dict = Depends(auth.require_admin),
     db: Session = Depends(get_db)
 ):
     """
     Uploads or updates a step voiceover audio file (Admin Only).
     Saves binary file to UPLOAD_DIR and upserts SQL metadata record.
     """
+    _validate_tour_id(tour_id)
+    admin_email = admin_user.get("email", "admin")
+
     ext = "webm"
     if file.filename and "." in file.filename:
-        ext = file.filename.split(".")[-1]
-    
+        ext = file.filename.rsplit(".", 1)[-1].lower()
+    if ext not in ALLOWED_AUDIO_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Unsupported audio format. Allowed: {', '.join(sorted(ALLOWED_AUDIO_EXTENSIONS))}",
+        )
+
+    contents = await file.read(MAX_AUDIO_BYTES + 1)
+    if len(contents) > MAX_AUDIO_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Audio file exceeds 10 MB limit",
+        )
+
     filename = f"{tour_id}_step_{step_index}.{ext}"
-    file_path = os.path.join(UPLOAD_DIR, filename)
-    
+    upload_root = Path(UPLOAD_DIR).resolve()
+    file_path = (upload_root / filename).resolve()
+    if file_path.parent != upload_root:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file path")
+
     # Save file to Option 1 Storage (Persistent Volume / Local Disk)
     with open(file_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        buffer.write(contents)
         
     # Upsert SQL Database Record in middle
     existing = db.query(models.TourVoiceover).filter(
@@ -125,12 +124,13 @@ async def upload_step_voiceover(
 def delete_step_voiceover(
     tour_id: str,
     step_index: int,
-    admin_email: str = Depends(verify_admin_token),
+    admin_user: dict = Depends(auth.require_admin),
     db: Session = Depends(get_db)
 ):
     """
     Deletes a step voiceover file and removes its metadata record (Admin Only).
     """
+    _validate_tour_id(tour_id)
     existing = db.query(models.TourVoiceover).filter(
         models.TourVoiceover.tour_id == tour_id,
         models.TourVoiceover.step_index == step_index
